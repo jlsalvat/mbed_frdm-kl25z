@@ -90,6 +90,8 @@ void sleepSrcDisable(SLEEP_WKUP_SRC src);
 void sleepPinEnable(PinName pin, SLEEP_WKUP_PIN_MODE mode);
 void sleepInit();
 
+void sleepGoToVLPRunMode(void);
+void switchFEItoBLPI( void );
 
 
 #endif

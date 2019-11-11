@@ -349,6 +349,28 @@ int main(void)
     return 0;
 }
 **********************************************************************/
+/**************************************************************
+ * Exemple go to 1MHz VLPR for low power
+ * 
+ #include "mbed.h"
+#include "kl25_sleep.h"
+#include "kl25_systick.h"
+DigitalOut d2(D2);
+DigitalOut red(LED_RED);
+int main(){
+    sleepGoToVLPRunMode();// Go to 1MHz low power
+    while (true)
+    {
+       d2=1;
+       red=1;
+       delay_ms(1); //not 1ms but 1/48 ms
+       d2=0;
+       red=0;
+       delay_ms(1);
+    }
+    return 0;
+}
+*****************************************************************************************/
 //enter LLS mode 2uA
 void SMCSleepDeep(SLEEP_MODE mode)
 {
@@ -495,63 +517,95 @@ void sleepInit(){
     LLWU->ME &= 0;
 }
 
+
+
+void switchFEItoBLPI( void )
+{
+	/* Initialization */
+
+    /* SIM->SCGC5: PORTA=1 */
+    SIM->SCGC5 |= (uint32_t)0x0200UL;     /* Enable clock gate for ports to enable pin routing */
+
+    /* SIM->CLKDIV1: OUTDIV1=1,??=0,??=0,??=0,??=0,??=0,??=0,??=0,??=0,??=0,OUTDIV4=1,??=0,??=0,??=0,??=0,??=0,??=0,??=0,??=0,??=0,??=0,??=0,??=0,??=0,??=0,??=0,??=0 */
+    SIM->CLKDIV1 = (uint32_t)0x10010000UL; /* Update system prescalers - core clock div by 2, bus clock div by 2 */
+
+    SystemCoreClockUpdate();
+    /* PORTA->PCR18: ISF=0,MUX=0 */
+    PORTA->PCR[18] &= (uint32_t)~0x01000700UL;
+    /* PORTA->PCR19: ISF=0,MUX=0 */
+    PORTA->PCR[19] &= (uint32_t)~0x01000700UL;
+
+    /* Switch to FBE Mode */
+
+    /* OSC0->CR: ERCLKEN=1,??=0,EREFSTEN=0,??=0,SC2P=1,SC4P=0,SC8P=0,SC16P=1 */ //switch the external crystal on
+    OSC0->CR = (uint8_t)0x89U;
+    SystemCoreClockUpdate();
+
+    /* MCG->C2: LOCRE0=0,??=0,RANGE0=1,HGO0=1,EREFS0=1,LP=0,IRCS=0 */
+    MCG->C2 = (uint8_t)0x1CU;
+    SystemCoreClockUpdate();
+
+    /* MCG->C1: CLKS=2,FRDIV=2,IREFS=0,IRCLKEN=1,IREFSTEN=0 */
+    MCG->C1 = (uint8_t)0x90U;
+    SystemCoreClockUpdate();
+
+    /* MCG->C4: DMX32=0,DRST_DRS=0 */
+    MCG->C4 &= (uint8_t)~(uint8_t)0xE0U;
+
+    /* MCG->C5: ??=0,PLLCLKEN0=0,PLLSTEN0=0,PRDIV0=1 */
+    MCG->C5 = (uint8_t)0x01U;
+
+    /* MCG->C6: LOLIE0=0,PLLS=0,CME0=0,VDIV0=0 */
+    MCG->C6 = (uint8_t)0x00U;
+
+    while((MCG->S & MCG_S_OSCINIT0_MASK) == 0x00U){//wait till crystal selected by C2 eREFS0 has been initialized (1)
+    }
+
+    while((MCG->S & MCG_S_IREFST_MASK) != 0x00U) { /* Check that the source of the FLL reference clock is the external reference clock. */
+    }
+    while((MCG->S & 0x0CU) != 0x08U) {    /* Wait until external reference clock is selected as MCG output */
+    }
+
+
+    	/* Move to FBI Mode */
+
+
+    	/* MCG->C1: CLKS=1,FRDIV=2,IREFS=1,IRCLKEN=O,IREFSTEN=0 */
+    	MCG->C1 = (uint8_t)0x54U; /* Switch the system clock to the internal reference clock */
+
+    	MCG->C2 |=(1<<0);//select fast internal reference clock
+
+
+        while((MCG->S & MCG_S_IREFST_MASK) == 0x00U) {   /* Wait until IREFST is 1, indicating that internal reference clock has been selected as the reference clock source */
+        }
+
+        while((MCG->S & MCG_S_CLKST_MASK) != 0x1U << MCG_S_CLKST_SHIFT) {   /* Wait until the the internal reference clock is selected to feed MCGOUTCLK */
+        }
+
+        	/* Move to BLPI Mode */
+        	/* MCG->C2: LP=1,IRCS=1 */
+        	MCG->C2 = (uint8_t)0x03U;
+
+        	SystemCoreClockUpdate();
+}
+
+
 void sleepGoToVLPRunMode(void)
 {
-// Enable deep sleep mode
-SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
-// Enable OSCERCLK in STOP mode
-OSC0->CR |= OSC_CR_EREFSTEN_MASK;
-// Need this for UART and Low Power Timer to continue
-// Switch system to run at 1MHz
-SIM->CLKDIV1 = SIM_CLKDIV1_OUTDIV1(7)|SIM_CLKDIV1_OUTDIV4(7);
-// Turn off flash during sleep (Flash Doze)
-SIM->FCFG1 |= SIM_FCFG1_FLASHDOZE_MASK;
-MCG->C2 |= MCG_C2_LP_MASK; // Low Power Select
-//Controls whether the FLL or PLL is disabled in
-//BLPI and BLPE modes. In FBE or PBE modes, setting this
-//bit to 1 will transition the MCG into BLPE mode;
-//in FBI mode, setting this bit to 1 will transition the MCG
-//into BLPI mode. In any other MCG mode, LP bit has no affect.
-//0 FLL or PLL is not disabled in bypass modes.
-//1 FLL or PLL is disabled in bypass modes (lower power)
-MCG->C2 &= ~MCG_C2_HGO0_MASK;
-// Controls the crystal oscillator mode of operation.
-// See the Oscillator (OSC) chapter for more details.
-// 0 Configure crystal oscillator for low-power operation.
-// 1 Configure crystal oscillator for high-gain operation.
-// Note: HGO0 of MCG->C2 might already be zero
-// Turn off internal reference clock, as we are
-// using external crystal
-MCG->C1 &= ~MCG_C1_IRCLKEN_MASK;
-// Enable Very Low Power modes
-SMC->PMPROT |= SMC_PMPROT_AVLP_MASK;
-// Enable Very-Low-Power Run mode (VLPR)
-// and Very-Low-Power Stop (VLPS)
-SMC->PMCTRL = SMC_PMCTRL_RUNM(2) ; // VLPR
-SMC_PMCTRL_STOPM(2); // VLPS
-printf ("Waiting to enter VLPR.\n");
-while ((SMC->PMSTAT & 0x7F)!=0x04);
-printf ("VLPR activated!\n");
-}
-/*
-//relocate LLW_IRQHandler with NVIC CMIS function
-void sleep_attachInterrupt(void (*userFunc)(void)){
-fLLW=userFunc;
-NVIC_SetVector(LPTimer_IRQn, (uint32_t)LLW_IRQ_Handler);
-sleep_attachLLW_IRQHandler ();
+	//Switch off the clock into SCGC6 register - FTF Flash memory, which prevents entry into low power mode
+	SIM->SCGC6 &=~ (1 <<0);
+
+	// Allow very low power modes, can be written into only ONCE!
+    SMC->PMPROT |=SMC_PMPROT_AVLP_MASK;
+
+    //Very-Low-Power Run mode (VLPR) entry (enable)
+    SMC->PMCTRL |=  SMC_PMCTRL_RUNM(2);
+
+	switchFEItoBLPI(); // Switch from FEI MCG mode to BLPI MCG mode, internal fast 4MHz clock -> core clock divided to 1MHz, bus clock to core clock/2
+
+
 }
 
-// use Low Leakage Wake up LLW_IRQHandler i
-void sleep_attachLLW_IRQHandler (){
-NVIC_EnableIRQ(LLW_IRQn);
-NVIC_ClearPendingIRQ(LLW_IRQn);
-__enable_irq();
-}
-
-void sleep_detachInterrupt(){
-NVIC_DisableIRQ(LLW_IRQn);
-}
-*/
 
 
 
