@@ -15,7 +15,7 @@ enum CLK_INTERNAL_SEL{
     CLK_INTERNAL_32kHZ=0,
     CLK_INTERNAL_4MHz=1
 };
-
+//MAX Period if clk=48MHz => T=128/48000000*65536=174ms
 enum TPM_Prescaler{
     TPM_DIV_1 = 0,
     TPM_DIV_2 = 1,

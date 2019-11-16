@@ -14,7 +14,7 @@ int main (void){
 SIM->SCGC5 |= 0x400;
 PORTB->PCR[19] = 0x100;
 PTB->PDDR |= 0x080000;
-systick_attachInterrupt((41940 - 1),ISR);
+systick_attachInterrupt((48000 - 1),ISR);
 while (1) {
 //delay_ms(1000);
 //PTB->PTOR = 0x080000;

@@ -1,43 +1,59 @@
 #include "kl25_adc.h"
+#include "mbed.h"
 /***************************************
  * Exemple adc conversion 
+#include "mbed.h"
+#include "kl25_adc.h"
  int main(){
      // enable clock for ports
      uint32_t val_A0,val_Temp,val_band,val_Vref;
      int channel;
-    adcInit();
+    adcInit(ADC_Low_Power_OFF,ADC_Size_10bits,ADC_Sample_Time_6_Extra_cycles,ADC_Avg_4_Samples_Avg);
     while(1){
      val_A0= adcRead(adcSelect(PortB,0));
     val_Temp= adcRead(adcSelectTemp());
     val_Vref= adcRead(adcSelectVref());
-        printf("%d %d %d\n\r",val_A0,val_Temp,val_Vref);
-        wait_ms(100);
-
+    printf("%d %d %d\n\r",val_A0,val_Temp,val_Vref);
+    wait_ms(100);
     }
 }
 ****************************************/
 
-void adcInit(){
+void adcInit(ADC_Low_Power lp,ADC_Size size,ADC_Sample_Time sampleTime,ADC_Avg avg){
+    
     SIM->SCGC6 |= SIM_SCGC6_ADC0_MASK; // enable CLK ADC0
-    ADC0->CFG1 = ADC_CFG1_ADLPC_MASK            // Low-Power Configuration
-               | ADC_CFG1_ADIV(2)    // Clock Divide Select: (Input Clock)/4
-               | ADC_CFG1_ADLSMP_MASK           // Long Sample Time
-               | ADC_CFG1_MODE(1)               // (12)bits Resolution
-               | ADC_CFG1_ADICLK(0);    // Input Clock: (Bus Clock=48MHz)
 
-//00 Default longest sample time; 20 extra ADCK cycles; 24 ADCK cycles total.
-//01 12 extra ADCK cycles; 16 ADCK cycles total sample time.
-//10 6 extra ADCK cycles; 10 ADCK cycles total sample time.
-//11 2 extra ADCK cycles; 6 ADCK cycles total sample time.
-    ADC0->CFG2 = ADC_CFG2_ADHSC_MASK    // High-Speed Configuration
-               | ADC_CFG2_ADLSTS(0b10);    // 6 extra ADCK cycles; 10 ADCK cycles total sample time.
-//00 4 samples averaged.
-//01 8 samples averaged.
-//10 16 samples averaged.
-//11 32 samples averaged.
+    if(lp==ADC_Low_Power_ON)
+        ADC0->CFG1 = ADC_CFG1_ADLPC_MASK;  // Low-Power Configuration
+    if(sampleTime>0){
+        ADC0->CFG1 |= ADC_CFG1_ADLSMP_MASK;        
+        ADC0->CFG2 = ADC_CFG2_ADLSTS(sampleTime&3);
+    }
+
+    ADC0->CFG1 |=ADC_CFG1_ADIV(1)    // Clock Divide Select: (Input Clock)/2 : 24MHz/2=12MHz
+               | ADC_CFG1_MODE(size)               // (n)bits Resolution
+               | ADC_CFG1_ADICLK(0);    // Input Clock: (Bus Clock=24MHz)
+
+  /* ADC0_CFG2: ADACKEN=1,ADHSC=0,ADLSTS=0 for speed up */
+  ADC0->CFG2 = (uint32_t)((ADC0->CFG2 & (uint32_t)~(uint32_t)(
+               ADC_CFG2_ADHSC_MASK |
+               ADC_CFG2_ADLSTS(0x03)
+              )) | (uint32_t)(
+               ADC_CFG2_ADACKEN_MASK
+              ));
+
+    if(avg>0)
     ADC0->SC3 = ADC_SC3_AVGE_MASK       // Hardware Average Enable
-              | ADC_SC3_AVGS(0b00);        // 4 Samples Averaged
+              | ADC_SC3_AVGS(avg&3);   // which number of avg samples
+//   printf("CFG1=%x CFG2=%x CFG3=%x\n\r",ADC0->CFG1,ADC0->CFG2,ADC0->SC3);
 }
+
+void ADCInitMaxSpeed(){
+    adcInit(ADC_Low_Power_ON,ADC_Size_8bits,ADC_Sample_Time_Minimal,ADC_No_Avg);
+    ADC0->CFG1 &=~ADC_CFG1_ADIV_MASK;  // no div input =24MHz ??? ca fonctionne
+}
+
+
 
 int adcSelect(PortName port, int pin){
     int channel=-1;

@@ -92,6 +92,6 @@ void sleepInit();
 
 void sleepGoToVLPRunMode(void);
 void switchFEItoBLPI( void );
-
+void sleepChangeUart0_9600bps();
 
 #endif

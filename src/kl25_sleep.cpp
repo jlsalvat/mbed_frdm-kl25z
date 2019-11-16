@@ -109,7 +109,32 @@ int main(void){
     return 0;
 }
 ****************************************************************/
+/*************************************************************
+ * Test mode VLPR : problème printf bloquant...
+ #include "mbed.h"
+#include "kl25_sleep.h"
+#include "kl25_systick.h"
+DigitalOut d2(D2);
+DigitalOut red(LED_RED);
+Serial pc(USBTX,USBRX,9600);
+int main(){
+    sleepGoToVLPRunMode();// Go to 1MHz low power
 
+    sleepChangeUart0_9600bps();
+    while (true)
+    {
+       d2=1;
+       red=1;
+       delay_ms(1); //not 1ms but 1/48 ms
+     //  pc.printf("1"); // bloquant!!!
+       d2=0;
+       red=0;
+       delay_ms(1);
+     //  pc.printf("0");
+    }
+    return 0;
+}
+*****************************************************************************/
 
 /*
 void (*fLLW)(void);
@@ -546,7 +571,7 @@ void switchFEItoBLPI( void )
     SystemCoreClockUpdate();
 
     /* MCG->C1: CLKS=2,FRDIV=2,IREFS=0,IRCLKEN=1,IREFSTEN=0 */
-    MCG->C1 = (uint8_t)0x90U;
+    MCG->C1 = (uint8_t)0x82U;
     SystemCoreClockUpdate();
 
     /* MCG->C4: DMX32=0,DRST_DRS=0 */
@@ -602,8 +627,16 @@ void sleepGoToVLPRunMode(void)
     SMC->PMCTRL |=  SMC_PMCTRL_RUNM(2);
 
 	switchFEItoBLPI(); // Switch from FEI MCG mode to BLPI MCG mode, internal fast 4MHz clock -> core clock divided to 1MHz, bus clock to core clock/2
+}
 
-
+// bloquant en mode VLPR ???
+void sleepChangeUart0_9600bps(){
+SIM->SOPT2 |= SIM_SOPT2_UART0SRC(3);// use IRC clock output for UART Baud rate generator 
+UART0->C2 = 0;// turn off UART0 while changing configurations 
+UART0->BDH = 0x00;
+UART0->BDL = 13; // 9600 Baud = 1000000/13/8
+UART0->C4 = 0x07;
+UART0->C2 = UART_C2_TE_MASK;// turn on TX
 }
 
 
