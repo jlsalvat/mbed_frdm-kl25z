@@ -9,6 +9,7 @@
 - add kl25_sleep.cpp for use of VLPR mode and LLS sleep function. Wake up from pin or internal. Lots of example inside cpp function.
 - add tpm0,1 and 2 Timer drivers for speed. for example it's possible to create a PWM signal 480kHz (from 0 to 100). Impossible with PwmOut Class.
 - add tsi driver, more options than in [TSI Class](https://os.mbed.com/users/quevedo/code/TSIHW/"TSI Class")
+- add debug driver in replace of Serial Class (minimal size and speed up), tests done until 1MHz (Class Serial is ok too)
 -  main with a lot of tests inside (IIR FIR filter, test ADC DAC,...). A lots of programs are in cpp drivers and have just to be copied to main.cpp function.
 ### How to use
 - Install [VS code](https://code.visualstudio.com/)
