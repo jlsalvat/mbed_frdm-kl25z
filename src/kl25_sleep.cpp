@@ -629,15 +629,7 @@ void sleepGoToVLPRunMode(void)
 	switchFEItoBLPI(); // Switch from FEI MCG mode to BLPI MCG mode, internal fast 4MHz clock -> core clock divided to 1MHz, bus clock to core clock/2
 }
 
-// bloquant en mode VLPR ???
-void sleepChangeUart0_9600bps(){
-SIM->SOPT2 |= SIM_SOPT2_UART0SRC(3);// use IRC clock output for UART Baud rate generator 
-UART0->C2 = 0;// turn off UART0 while changing configurations 
-UART0->BDH = 0x00;
-UART0->BDL = 13; // 9600 Baud = 1000000/13/8
-UART0->C4 = 0x07;
-UART0->C2 = UART_C2_TE_MASK;// turn on TX
-}
+
 
 
 
