@@ -136,7 +136,8 @@ Test comparator
     }
 
 Test ADC with AnalogIn time conversion = 35us
-     #include "mbed.h"
+
+    #include "mbed.h"
     #include "kl25_gpio.h"
 
     Serial pc(USBTX,USBRX,115200);
@@ -151,9 +152,10 @@ Test ADC with AnalogIn time conversion = 35us
             fgpioToggle(FPTD,4);//max speed
         }    
     }
+    
 Test with ADC driver : better , time conversion = 2,9us
 	
-	    //idem mais plus vite avec modif pour aller à fond... : 2,9us
+    //idem mais plus vite avec modif pour aller à fond... : 2,9us
     // on peut même faire mieux... Cf prog IIR
     #include "mbed.h"
     #include "kl25_adc.h"
@@ -174,6 +176,7 @@ Test with ADC driver : better , time conversion = 2,9us
     }
 
 Test timer Frequence meter max 70kHz on D3 InterruptIn
+
     #include "mbed.h"
     #include "kl25_gpio.h"
     volatile bool gFlag20ms;
@@ -242,6 +245,7 @@ Test Timer Frequence meter max 270kHz signal on D3 : better than Interruptin
         }    
     }
 Frequence meter on  External count pin on PE29 : up to 10MHz : The Best
+
     #include "mbed.h"
     #include "kl25_gpio.h"
     #include "kl25_tpm1.h"
@@ -277,6 +281,7 @@ Frequence meter on  External count pin on PE29 : up to 10MHz : The Best
     }
 
 Example read TSI in interrupt
+
     #include "mbed.h"
     DigitalOut red(LED_RED);
     TSIChannelName gChannel;
@@ -406,7 +411,9 @@ ADC DAC Filter IIR ordre 4 freq sample = 200kHz, Freq stop = 20kHz
             fgpioToggle(FPTD,4); // visu temps de conversion 5us
         }
     } 
+    
 Example with sleep LLS ...
+
     /* exemple with 4 sources wakeup*/
     #include "mbed.h"
     #include "kl25_lptmr.h"
